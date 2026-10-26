@@ -20,9 +20,11 @@ async function startServer() {
     });
 
     // Graceful shutdown: close database and server on process exit
-    const shutdown = () => {
+    const shutdown = async () => {
       console.log('\nShutting down gracefully...');
-      db.close();
+      if (db.$disconnect) {
+        await db.$disconnect();
+      }
       server.close(() => {
         process.exit(0);
       });

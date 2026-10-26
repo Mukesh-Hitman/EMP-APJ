@@ -88,87 +88,112 @@ export default function EmployeeForm({ onSubmit, employee, onCancel }) {
   };
 
   return (
-    <div className="employee-form-container">
-      <h3>{isEdit ? 'Edit Employee' : 'Add Employee'}</h3>
-      {serverError && <div className="server-error">{serverError}</div>}
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="form-group">
-          <label htmlFor="name">Name</label>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            value={formData.name}
-            onChange={handleChange}
-          />
-          {errors.name && <span className="field-error">{errors.name}</span>}
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-          />
-          {errors.email && <span className="field-error">{errors.email}</span>}
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="department">Department</label>
-          <select
-            id="department"
-            name="department"
-            value={formData.department}
-            onChange={handleChange}
+    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}>
+      <div className="employee-form-container" role="dialog" aria-modal="true">
+        <div className="form-header">
+          <div>
+            <h3>{isEdit ? 'Edit Employee' : 'Add Employee'}</h3>
+            <p>{isEdit ? 'Update team member information below' : 'Fill in the information to onboard a team member'}</p>
+          </div>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={onCancel}
+            aria-label="Close dialog"
           >
-            <option value="">Select Department</option>
-            {DEPARTMENTS.map((dept) => (
-              <option key={dept} value={dept}>{dept}</option>
-            ))}
-          </select>
-          {errors.department && <span className="field-error">{errors.department}</span>}
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="designation">Designation</label>
-          <input
-            id="designation"
-            name="designation"
-            type="text"
-            value={formData.designation}
-            onChange={handleChange}
-          />
-          {errors.designation && <span className="field-error">{errors.designation}</span>}
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="status">Status</label>
-          <select
-            id="status"
-            name="status"
-            value={formData.status}
-            onChange={handleChange}
-          >
-            <option value="">Select Status</option>
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          {errors.status && <span className="field-error">{errors.status}</span>}
-        </div>
-
-        <div className="form-actions">
-          <button type="submit" className="btn btn-primary" disabled={submitting}>
-            {submitting ? 'Saving...' : isEdit ? 'Update Employee' : 'Add Employee'}
-          </button>
-          <button type="button" className="btn btn-cancel" onClick={onCancel}>
-            Cancel
+            ✕
           </button>
         </div>
-      </form>
+
+        {serverError && <div className="server-error">{serverError}</div>}
+
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="form-group">
+            <label htmlFor="name">Name</label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              placeholder="e.g. Mukesh Kumar"
+              value={formData.name}
+              onChange={handleChange}
+              className={errors.name ? 'input-error' : ''}
+            />
+            {errors.name && <span className="field-error">⚠ {errors.name}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="e.g. mukesh@company.com"
+              value={formData.email}
+              onChange={handleChange}
+              className={errors.email ? 'input-error' : ''}
+            />
+            {errors.email && <span className="field-error">⚠ {errors.email}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="department">Department</label>
+            <select
+              id="department"
+              name="department"
+              value={formData.department}
+              onChange={handleChange}
+              className={errors.department ? 'input-error' : ''}
+            >
+              <option value="">Select Department</option>
+              {DEPARTMENTS.map((dept) => (
+                <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+            {errors.department && <span className="field-error">⚠ {errors.department}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="designation">Designation</label>
+            <input
+              id="designation"
+              name="designation"
+              type="text"
+              placeholder="e.g. Senior Software Engineer"
+              value={formData.designation}
+              onChange={handleChange}
+              className={errors.designation ? 'input-error' : ''}
+            />
+            {errors.designation && <span className="field-error">⚠ {errors.designation}</span>}
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="status">Status</label>
+            <select
+              id="status"
+              name="status"
+              value={formData.status}
+              onChange={handleChange}
+              className={errors.status ? 'input-error' : ''}
+            >
+              <option value="">Select Status</option>
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            {errors.status && <span className="field-error">⚠ {errors.status}</span>}
+          </div>
+
+          <div className="form-actions">
+            <button type="button" className="btn btn-cancel" onClick={onCancel}>
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Saving...' : isEdit ? 'Update Employee' : 'Add Employee'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

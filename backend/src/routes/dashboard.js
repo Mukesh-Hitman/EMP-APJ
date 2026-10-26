@@ -1,26 +1,28 @@
 const express = require('express');
 
 /**
- * Create the dashboard router.
- * @param {import('better-sqlite3').Database} db - The database instance.
- * @returns {express.Router} Configured Express router for dashboard endpoints.
+ * Create the dashboard router using Prisma ORM.
+ * @param {import('@prisma/client').PrismaClient} prisma - The PrismaClient instance.
+ * @returns {express.Router} Configured Express router.
  */
-function createDashboardRouter(db) {
+function createDashboardRouter(prisma) {
   const router = express.Router();
 
   /**
    * GET /api/dashboard
    * Returns employee statistics: total count, active count, and inactive count.
    */
-  router.get('/', (req, res) => {
+  router.get('/', async (req, res) => {
     try {
-      const total = db.prepare('SELECT COUNT(*) as count FROM employees').get().count;
-      const active = db.prepare("SELECT COUNT(*) as count FROM employees WHERE status = 'active'").get().count;
-      const inactive = db.prepare("SELECT COUNT(*) as count FROM employees WHERE status = 'inactive'").get().count;
+      const [total, active, inactive] = await Promise.all([
+        prisma.employee.count(),
+        prisma.employee.count({ where: { status: 'active' } }),
+        prisma.employee.count({ where: { status: 'inactive' } }),
+      ]);
 
       res.json({ total, active, inactive });
     } catch (err) {
-      console.error('Error fetching dashboard stats:', err.message);
+      console.error('Error fetching dashboard stats with Prisma:', err.message);
       res.status(500).json({ error: 'Failed to fetch dashboard statistics' });
     }
   });

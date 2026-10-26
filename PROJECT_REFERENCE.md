@@ -8,11 +8,13 @@
 
 | Layer | Technology | Justification |
 |---|---|---|
-| **Frontend** | React 18, Vite | Component modularity, reactive state updates, sub-second HMR dev server |
-| **Backend API** | Node.js, Express.js | Standard RESTful routing, flexible middleware chain, non-blocking I/O |
-| **Database** | SQLite via `sql.js` | Zero-dependency, pure WebAssembly/JS SQLite engine; no native C++ compiler needed on Windows; atomic persistence to disk via export buffer |
+| **Frontend** | React 18, Vite | Modern component architecture, reactive state updates, sub-second HMR dev server |
+| **Frontend UI/UX** | Modern SaaS Design System | Clean slate & indigo aesthetic, backdrop-blur modal dialog, avatar initials, pulsing status indicators, toast notifications |
+| **Backend API** | Node.js, Express.js | Standard RESTful routing, flexible validation middleware chain, non-blocking I/O |
+| **ORM / Data Layer** | **Prisma ORM 5 (`@prisma/client`)** | Type-safe queries, migration system, automatic query generation, elimination of raw SQL queries |
+| **Database** | SQLite (`file:./dev.db`) | Zero-config, file-backed database managed entirely via Prisma schema migrations |
 | **API Client** | Native `fetch` with error wrapper | Zero additional bundle weight, explicit status code & error message unwrapping |
-| **Backend Tests** | Jest 29, Supertest 6 | Complete integration tests with in-memory SQLite database (`:memory:`) |
+| **Backend Tests** | Jest 29, Supertest 6 | Full API integration tests executed against Prisma test database (`--runInBand`) |
 | **Frontend Tests**| Vitest, React Testing Library, jsdom | Fast test execution matching Vite config, DOM simulation, user-centric queries |
 | **VCS** | Git | Feature branching, clean commits, full revision traceability |
 
@@ -22,26 +24,29 @@
 
 ```
 EMP-APJ/
-├── .gitignore                      # Ignore node_modules, .db files, build artifacts
+├── .gitignore                      # Ignore node_modules, .db files, .env, build artifacts
 ├── README.md                       # User-facing guide with setup and run instructions
 ├── PROJECT_REFERENCE.md            # [THIS FILE] Technical reference & architecture manual
 │
 ├── backend/
-│   ├── package.json                # Express, sql.js, cors, jest, supertest
-│   ├── jest.config.js              # Jest configuration targeting tests/
-│   ├── employees.db                # Persisted SQLite database file (created on runtime)
+│   ├── .env                        # DATABASE_URL="file:./dev.db" & PORT=5000
+│   ├── package.json                # Express, @prisma/client, cors, jest, supertest, prisma
+│   ├── dev.db                      # SQLite database managed by Prisma
+│   ├── prisma/
+│   │   └── schema.prisma           # Prisma schema definition (Employee model)
 │   ├── src/
-│   │   ├── app.js                  # Express application factory createApp(db) with CORS & JSON
-│   │   ├── db.js                   # sql.js initialization, table migration, wrapper with auto-save
-│   │   ├── server.js               # Application entry point: initializes db and starts listener
+│   │   ├── app.js                  # Express app factory createApp(prisma) with CORS & JSON
+│   │   ├── prisma.js               # PrismaClient singleton instance manager
+│   │   ├── db.js                   # initializeDatabase helper
+│   │   ├── server.js               # Application entry point: initializes Prisma and starts listener
 │   │   ├── middleware/
-│   │   │   └── validation.js       # Field-level validators for POST & PUT employee payloads
+│   │   │   └── validation.js       # Field-level validators for POST & PUT employee payloads (case-insensitive)
 │   │   └── routes/
-│   │       ├── dashboard.js        # GET /api/dashboard (total, active, inactive counters)
-│   │       └── employees.js        # CRUD + Search (LIKE) + Department/Status filtering
+│   │       ├── dashboard.js        # GET /api/dashboard via prisma.employee.count()
+│   │       └── employees.js        # Prisma findMany, findUnique, create, update, delete
 │   └── tests/
 │       ├── dashboard.test.js       # 6 integration tests for dashboard metrics calculation
-│       └── employees.test.js       # 28 integration tests for CRUD, filtering, validation, 409 conflict
+│       └── employees.test.js       # 29 integration tests for CRUD, filtering, validation, 409 conflict
 │
 └── frontend/
     ├── package.json                # React 18, Vite, Vitest, Testing Library
@@ -50,13 +55,13 @@ EMP-APJ/
     ├── index.html                  # HTML entry point with viewport configuration
     ├── src/
     │   ├── main.jsx                # React root bootstrap
-    │   ├── App.jsx                 # Central state manager: loads dashboard & employee lists, coordinates modals
-    │   ├── App.css                 # Clean, responsive CSS with CSS variables, tables & badges
+    │   ├── App.jsx                 # Modern layout, live toast notifications, modal coordinator
+    │   ├── App.css                 # Modern SaaS CSS with elevation, glassmorphism modal, avatar pills
     │   ├── components/
-    │   │   ├── Dashboard.jsx       # 3 stat cards: Total, Active, Inactive employees
-    │   │   ├── SearchFilter.jsx    # Debounced text search (300ms) + Department + Status dropdowns
-    │   │   ├── EmployeeList.jsx    # Data table with edit/delete triggers, status badges, empty states
-    │   │   └── EmployeeForm.jsx    # Add/Edit modal form with client validation & API error alerts
+    │   │   ├── Dashboard.jsx       # 3 modern metric cards with icon bubbles & capacity ratio
+    │   │   ├── SearchFilter.jsx    # Search input with icon + Clear button + styled selects
+    │   │   ├── EmployeeList.jsx    # Table with avatar initials, department chips, animated dot badges
+    │   │   └── EmployeeForm.jsx    # Modern backdrop-blurred modal dialog with field hints & validation
     │   ├── services/
     │   │   └── api.js              # HTTP client abstraction (fetch, error extraction)
     │   └── tests/
@@ -68,25 +73,38 @@ EMP-APJ/
 
 ---
 
-## 3. Database Schema
+## 3. Database Schema (Prisma)
 
-### Table: `employees`
+### `backend/prisma/schema.prisma`
 
-```sql
-CREATE TABLE IF NOT EXISTS employees (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL,
-  email TEXT NOT NULL UNIQUE,
-  department TEXT NOT NULL,
-  designation TEXT NOT NULL,
-  status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
-  created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
-);
+```prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id          Int      @id @default(autoincrement())
+  name        String
+  email       String   @unique
+  department  String
+  designation String
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("employees")
+}
 ```
 
-### Persistence Mechanism:
-`sql.js` initializes from `employees.db` on disk if present. Every `.run()` statement (INSERT, UPDATE, DELETE) executes `wrapper.save()`, writing the SQLite binary buffer atomically to `employees.db`. In tests, passing `':memory:'` bypasses disk writes for maximum speed and complete isolation.
+### Persistence & ORM Execution:
+- Direct raw SQL queries have been completely replaced with **Prisma ORM**.
+- All queries utilize `prisma.employee.findMany`, `prisma.employee.findUnique`, `prisma.employee.create`, `prisma.employee.update`, `prisma.employee.delete`, and `prisma.employee.count`.
+- Database schema changes are synced using `npx prisma db push` or `npx prisma migrate dev`.
 
 ---
 
@@ -96,7 +114,7 @@ Base URL: `http://localhost:5000/api`
 
 ### 4.1 Dashboard
 - **`GET /api/dashboard`**
-  - **Description**: Returns live employee count metrics.
+  - **Prisma Query**: Concurrent `Promise.all([prisma.employee.count(), prisma.employee.count({ where: { status: 'active' } }), prisma.employee.count({ where: { status: 'inactive' } })])`
   - **Response 200**:
     ```json
     {
@@ -109,16 +127,18 @@ Base URL: `http://localhost:5000/api`
 ### 4.2 Employees CRUD & Search
 - **`GET /api/employees`**
   - **Query Parameters**:
-    - `search` *(string, optional)*: Case-insensitive substring match on `name` (`%search%`).
-    - `department` *(string, optional)*: Exact match on `department`.
-    - `status` *(string, optional)*: Match on `'active'` or `'inactive'`.
-  - **Response 200**: Array of employee objects ordered by `created_at DESC`.
+    - `search` *(string, optional)*: Filter by employee name (`where: { name: { contains: search } }`).
+    - `department` *(string, optional)*: Filter by exact department.
+    - `status` *(string, optional)*: Filter by status (`active` or `inactive`, case-insensitive).
+  - **Response 200**: Array of employee records ordered by `createdAt DESC`.
 
 - **`GET /api/employees/:id`**
+  - **Prisma Query**: `prisma.employee.findUnique({ where: { id } })`
   - **Response 200**: Single employee record.
   - **Response 404**: `{"error": "Employee not found"}`
 
 - **`POST /api/employees`**
+  - **Prisma Query**: Checks `prisma.employee.findUnique({ where: { email } })`, then `prisma.employee.create(...)`.
   - **Request Body**:
     ```json
     {
@@ -126,72 +146,63 @@ Base URL: `http://localhost:5000/api`
       "email": "jane.doe@company.com",
       "department": "Engineering",
       "designation": "Staff Engineer",
-      "status": "active" // optional, defaults to 'active'
+      "status": "active" // Case-insensitive: 'Active', 'active', 'ACTIVE' accepted
     }
     ```
-  - **Validation**:
-    - `name`: 2-100 characters, non-empty
-    - `email`: Valid RFC email regex, converted to lowercase, unique
-    - `department`: Required
-    - `designation`: Required
-    - `status`: Must be `'active'` or `'inactive'`
-  - **Response 201**: Created employee record with `id`, `created_at`, `updated_at`.
+  - **Response 201**: Created employee record.
   - **Response 400**: `{"error": "Validation failed", "details": ["..."]}`
-  - **Response 409**: `{"error": "An employee with this email already exists"}`
+  - **Response 409**: `{"error": "An employee with this email already exists"}` (also catches Prisma `P2002`).
 
 - **`PUT /api/employees/:id`**
-  - **Request Body**: Same fields as POST.
-  - **Validation**: Same as POST, excluding the target employee from duplicate email conflict check.
-  - **Response 200**: Updated employee object with updated `updated_at`.
+  - **Prisma Query**: Verifies ID exists, verifies email not taken by another ID (`NOT: { id }`), then calls `prisma.employee.update(...)`.
+  - **Response 200**: Updated employee record.
   - **Response 404**: `{"error": "Employee not found"}`
-  - **Response 409**: Duplicate email exists on another record.
+  - **Response 409**: Duplicate email conflict.
 
 - **`DELETE /api/employees/:id`**
+  - **Prisma Query**: `prisma.employee.delete({ where: { id } })`
   - **Response 200**: `{"message": "Employee deleted successfully"}`
   - **Response 404**: `{"error": "Employee not found"}`
 
 ---
 
-## 5. Application Workflow & State Architecture
+## 5. UI/UX Architecture & Modern Styling System
 
 ```mermaid
 graph TD
-    A[Browser / User] -->|Open App| B[React App.jsx]
-    B -->|Fetch in parallel| C[GET /api/dashboard]
-    B -->|Fetch with filters| D[GET /api/employees?search=&dept=&status=]
-    C -->|Stats data| E[Dashboard Component]
-    D -->|Records array| F[EmployeeList Component]
+    A[Modern Navigation Header] --> B[Live Prisma ORM Status Pill]
+    A --> C[+ Add Employee Action]
+    C --> D[Backdrop-Blurred Modal Dialog]
     
-    A -->|Types in search/filters| G[SearchFilter Component]
-    G -->|Debounced 300ms update| B
+    E[Dashboard Metric Row] --> F[Total Workforce Card]
+    E --> G[Active Members Card + % Capacity]
+    E --> H[Inactive Card]
     
-    A -->|Clicks Add / Edit| H[EmployeeForm Modal]
-    H -->|Client validation| H
-    H -->|Submit Valid Data| I[POST / PUT /api/employees]
-    I -->|Success 200/201| J[Trigger refreshData in App]
-    I -->|Error 400/409| K[Display inline/banner alert]
+    I[Search & Filter Toolbar] --> J[Search with Instant Clear]
+    I --> K[Department Dropdown]
+    I --> L[Status Dropdown]
     
-    A -->|Clicks Delete| L[window.confirm dialog]
-    L -->|Confirmed| M[DELETE /api/employees/:id]
-    M -->|Success| J
-    J --> B
+    M[Data Table] --> N[Initials Avatar Circle]
+    M --> O[Department Chip]
+    M --> P[Pulsing Dot Status Badge]
+    M --> Q[Actions: Modern Edit / Delete]
+    
+    R[App Notifications] --> S[Slide-in Toast Notification]
 ```
 
-### Key Workflow Highlights:
-1. **Zero Out-of-Sync Counters**: When an employee is added, edited, or deleted, `refreshData()` triggers both `fetchDashboard()` and `fetchEmployees()` concurrently so stats always match the database truth.
-2. **Double-Layer Validation**:
-   - Client-side: Instant feedback before submission (empty inputs, invalid email pattern).
-   - Server-side: Express middleware sanitizes, validates types, and rejects duplicates.
-3. **Safe Search Debouncing**: 300ms debounce on search input prevents query spamming on every keystroke.
-4. **Destructive Action Safeguard**: Deletion requires explicit user confirmation via `window.confirm`.
+### Key UI Features:
+1. **Glassmorphism & Modal System**: Dialog with backdrop blur (`backdrop-filter: blur(4px)`) and click-outside dismissal.
+2. **Visual Hierarchy**: Custom avatar circle with computed name initials (e.g. "JD" for Jane Doe).
+3. **Pulsing Status Dots**: Clean badge with a glowing green dot for active status.
+4. **Action Toast Notifications**: Success toasts automatically notify the user when an employee is created, updated, or removed.
 
 ---
 
 ## 6. Testing Strategy & Coverage
 
-- **Backend (Jest + Supertest)**: 34 tests covering happy path, validation failures, unique constraint violations, filter combinations, 404s, and count arithmetic.
+- **Backend (Jest + Supertest)**: 35 tests covering all CRUD, search filters, case insensitivity, validation, conflict prevention, and metrics via Prisma.
 - **Frontend (Vitest + React Testing Library)**: 15 tests verifying stat cards, table rendering, empty state handling, form validation messages, and submission triggers.
-- **Total Test Suite**: 49 automated tests passing.
+- **Total Test Suite**: 50 automated tests passing.
 
 ---
 
@@ -199,9 +210,7 @@ graph TD
 
 | Date | Author | Description of Change | Rationale / Notes |
 |---|---|---|---|
-| 2026-10-26 | System | Initial full-stack implementation | Express API, React frontend, SQLite persistence, test suites |
-| 2026-10-26 | System | Switched from `better-sqlite3` to `sql.js` | Windows environment compatibility without requiring Visual Studio C++ build tools |
-| 2026-10-26 | System | Added automated database saving on `.run()` | Guarantees atomic write of `employees.db` to disk on all mutations |
-| 2026-10-26 | System | Fixed heading query collision in `EmployeeForm.test.jsx` | Use `getByRole('heading', { name: 'Add Employee' })` to avoid button text collision |
-| 2026-10-26 | System | Fixed case-sensitivity validation for `status` and `id` mapping | Backend now normalizes `status` case-insensitively ('Active' -> 'active'); Frontend maps `id || _id` and displays detailed server validation errors |
-
+| 2026-10-26 | System | Initial full-stack implementation | Express API, React frontend, test suites |
+| 2026-10-26 | System | Fixed case-sensitivity validation for `status` and `id` mapping | Backend normalizes `status` case-insensitively; Frontend maps `id || _id` |
+| 2026-10-26 | System | **Migrated database layer to Prisma ORM** | Replaced raw SQL queries with Prisma 5 ORM (`@prisma/client`); added `schema.prisma` and SQLite migration |
+| 2026-10-26 | System | **Redesigned frontend with Modern SaaS UI** | Glassmorphism modal dialog, avatar initials bubbles, metric card badges, toast notifications, responsive toolbar |

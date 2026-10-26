@@ -5,14 +5,20 @@ const createApp = require('../src/app');
 let db;
 let app;
 
-beforeEach(async () => {
-  // Use in-memory database for each test
-  db = await initializeDatabase(':memory:');
+beforeAll(async () => {
+  db = await initializeDatabase();
   app = createApp(db);
 });
 
-afterEach(() => {
-  db.close();
+beforeEach(async () => {
+  // Clear employee table before each test
+  await db.employee.deleteMany({});
+});
+
+afterAll(async () => {
+  if (db && db.$disconnect) {
+    await db.$disconnect();
+  }
 });
 
 /** Helper to create a valid employee */

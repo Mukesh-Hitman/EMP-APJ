@@ -1,58 +1,82 @@
 # Employee Management System (EMP-APJ)
 
-A simple, functional full-stack Employee Management System built with **React (Vite)** on the frontend and **Node.js (Express) + SQLite (`sql.js`)** on the backend. Designed with a clear, workflow-focused architecture and robust automated test suites.
+A modern full-stack Employee Management System built with **React 18 + Vite** on the frontend and **Node.js (Express) + Prisma ORM + SQLite** on the backend.
+
+---
+
+## 🎨 Modernized Features
+
+- **Modern SaaS UI/UX**:
+  - Clean card elevation, glassmorphism modal dialog (`backdrop-filter: blur(4px)`), and modern color palette.
+  - User avatar initials circles computed dynamically from employee names.
+  - Live metric cards with capacity percentages and custom icon bubbles.
+  - Glowing status dot indicators for Active and Inactive members.
+  - Interactive search toolbar with instant reset.
+  - Toast notification banners confirming creation, update, and deletion events.
+- **Prisma ORM Data Layer**:
+  - Replaced all raw SQL queries with **Prisma ORM** (`@prisma/client`).
+  - Schema-driven SQLite database persistence (`dev.db`).
+  - Safe against SQL injection, with automatic field formatting and type safety.
+- **Workflow & Safeguards**:
+  - Case-insensitive status handling (`Active`, `active`, `ACTIVE`).
+  - Duplicate email prevention (`409 Conflict`).
+  - Dual-layer validation (instant inline form validation + Express middleware).
+  - Delete confirmation safeguard.
 
 ---
 
 ## 🚀 Commands to Run Locally
 
-You need two terminal windows: one for the **Backend** and one for the **Frontend**.
+You will need **two terminal windows**:
 
-### 1. Start the Backend API (Port 5000)
+### 1. Start the Backend API Server (Port 5000)
 
 Open Terminal 1:
 ```bash
-# Navigate to the backend directory
+# 1. Navigate to the backend directory
 cd backend
 
-# Install dependencies (only needed the first time)
+# 2. Install dependencies (only needed the first time)
 npm install
 
-# Start the server
+# 3. Generate Prisma client & ensure database is in sync
+npx prisma db push
+
+# 4. Start the Express API server
 npm start
 ```
-> The API will start and listen at **`http://localhost:5000`**.
+> The API server will listen at **`http://localhost:5000`**.
 
 ---
 
-### 2. Start the Frontend Application (Port 5173)
+### 2. Start the Frontend Client (Port 5173)
 
 Open Terminal 2:
 ```bash
-# Navigate to the frontend directory
+# 1. Navigate to the frontend directory
 cd frontend
 
-# Install dependencies (only needed the first time)
+# 2. Install dependencies (only needed the first time)
 npm install
 
-# Start the Vite development server
+# 3. Start the Vite development server
 npm run dev
 ```
-> Open your browser and navigate to **`http://localhost:5173`**.
+> Open your browser and navigate to: **[http://localhost:5173](http://localhost:5173)**
 
 ---
 
 ## 🧪 Running Automated Tests
 
-Both the backend and frontend have comprehensive test suites (49 total tests).
+The application includes **50 comprehensive automated tests** across the entire stack:
 
-### Run Backend Tests (Jest + Supertest - 34 tests)
+### Run Backend Tests (Jest + Supertest + Prisma — 35 tests)
 ```bash
 cd backend
 npm test
 ```
 
-### Run Frontend Tests (Vitest + Testing Library - 15 tests)
+### Run Frontend Tests (Vitest + React Testing Library — 15 tests)
 ```bash
 cd frontend
 npm test
@@ -60,44 +84,6 @@ npm test
 
 ---
 
-## 📋 Features
-
-### 1. Employee Management
-- **Add Employee**: Create records with `Name`, `Email`, `Department`, `Designation`, and `Status` (`Active` / `Inactive`).
-- **View Employees**: View an interactive list of all records in a responsive table.
-- **Edit Employee**: Modify details of existing employees.
-- **Delete Employee**: Remove employees with a confirmation prompt.
-- **Search & Filter**:
-  - Real-time search by employee name (debounced).
-  - Filter by department (*Engineering, Marketing, Sales, HR, Finance, Operations*).
-  - Filter by status (*Active, Inactive*).
-- **Validation & Duplicate Protection**:
-  - Rejects duplicate email addresses with `409 Conflict`.
-  - Validates required fields, email format, and field length constraints on both client and server.
-
-### 2. Real-Time Dashboard
-- Displays **Total Employees**, **Active Employees**, and **Inactive Employees** count cards.
-- Counts are calculated directly from actual database records and automatically stay in sync across all additions, edits, and deletions.
-
----
-
-## 🛠️ Tech Stack & Decisions
-
-- **Backend**: **Node.js + Express.js**
-  - Lightweight, modular REST architecture.
-- **Database**: **SQLite via `sql.js`**
-  - Pure JavaScript/WebAssembly SQLite engine that requires no native C++ compilation tools on Windows.
-  - Automatically persists changes to `employees.db` on disk.
-  - Fast in-memory database (`:memory:`) during test execution.
-- **Frontend**: **React 18 + Vite**
-  - Fast HMR development, clean component hierarchy, and zero UI library bloat.
-- **Automated Testing**:
-  - Backend: **Jest** & **Supertest** for full endpoint integration testing.
-  - Frontend: **Vitest** & **React Testing Library** for component rendering and user interaction testing.
-
----
-
 ## 📖 Project Documentation & Architecture
-For a deep dive into the internal structure, schemas, and workflow details, refer to:
+For the complete technical blueprint, database schema, data contracts, and revision logs, refer to:
 - [`PROJECT_REFERENCE.md`](./PROJECT_REFERENCE.md)
-

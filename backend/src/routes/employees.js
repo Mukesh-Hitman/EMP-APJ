@@ -2,49 +2,65 @@ const express = require('express');
 const { validateEmployee, validateEmployeeUpdate } = require('../middleware/validation');
 
 /**
- * Create the employees router.
- * @param {import('better-sqlite3').Database} db - The database instance.
- * @returns {express.Router} Configured Express router for employee endpoints.
+ * Format Prisma employee record to ensure consistent API shape.
+ * @param {object} emp
  */
-function createEmployeesRouter(db) {
+function formatEmployee(emp) {
+  if (!emp) return null;
+  return {
+    id: emp.id,
+    name: emp.name,
+    email: emp.email,
+    department: emp.department,
+    designation: emp.designation,
+    status: emp.status,
+    created_at: emp.createdAt,
+    updated_at: emp.updatedAt,
+  };
+}
+
+/**
+ * Create the employees router using Prisma ORM.
+ * @param {import('@prisma/client').PrismaClient} prisma - The PrismaClient instance.
+ * @returns {express.Router} Configured Express router.
+ */
+function createEmployeesRouter(prisma) {
   const router = express.Router();
 
   /**
    * GET /api/employees
    * List all employees with optional search, department, and status filters.
-   * Query params:
-   *   - search: case-insensitive name search (LIKE %search%)
-   *   - department: exact department match
-   *   - status: exact status match ('active' or 'inactive')
    */
-  router.get('/', (req, res) => {
+  router.get('/', async (req, res) => {
     try {
       const { search, department, status } = req.query;
 
-      let query = 'SELECT * FROM employees WHERE 1=1';
-      const params = [];
+      const where = {};
 
       if (search) {
-        query += ' AND name LIKE ?';
-        params.push(`%${search}%`);
+        where.name = {
+          contains: search,
+        };
       }
 
       if (department) {
-        query += ' AND department = ?';
-        params.push(department);
+        where.department = department;
       }
 
       if (status) {
-        query += ' AND LOWER(status) = ?';
-        params.push(status.trim().toLowerCase());
+        where.status = status.trim().toLowerCase();
       }
 
-      query += ' ORDER BY created_at DESC';
+      const employees = await prisma.employee.findMany({
+        where,
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
 
-      const employees = db.prepare(query).all(...params);
-      res.json(employees);
+      res.json(employees.map(formatEmployee));
     } catch (err) {
-      console.error('Error fetching employees:', err.message);
+      console.error('Error fetching employees with Prisma:', err.message);
       res.status(500).json({ error: 'Failed to fetch employees' });
     }
   });
@@ -53,110 +69,146 @@ function createEmployeesRouter(db) {
    * GET /api/employees/:id
    * Get a single employee by ID.
    */
-  router.get('/:id', (req, res) => {
+  router.get('/:id', async (req, res) => {
     try {
-      const { id } = req.params;
-      const employee = db.prepare('SELECT * FROM employees WHERE id = ?').get(id);
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(404).json({ error: 'Employee not found' });
+      }
+
+      const employee = await prisma.employee.findUnique({
+        where: { id },
+      });
 
       if (!employee) {
         return res.status(404).json({ error: 'Employee not found' });
       }
 
-      res.json(employee);
+      res.json(formatEmployee(employee));
     } catch (err) {
-      console.error('Error fetching employee:', err.message);
+      console.error('Error fetching employee with Prisma:', err.message);
       res.status(500).json({ error: 'Failed to fetch employee' });
     }
   });
 
   /**
    * POST /api/employees
-   * Create a new employee. Validates input and checks for duplicate email.
+   * Create a new employee using Prisma ORM.
    */
-  router.post('/', validateEmployee, (req, res) => {
+  router.post('/', validateEmployee, async (req, res) => {
     try {
       const { name, email, department, designation, status } = req.body;
+      const normalizedEmail = email.trim().toLowerCase();
+      const normalizedStatus = status ? status.trim().toLowerCase() : 'active';
 
       // Check for duplicate email
-      const existing = db.prepare('SELECT id FROM employees WHERE email = ?').get(email);
+      const existing = await prisma.employee.findUnique({
+        where: { email: normalizedEmail },
+      });
+
       if (existing) {
         return res.status(409).json({ error: 'An employee with this email already exists' });
       }
 
-      const stmt = db.prepare(`
-        INSERT INTO employees (name, email, department, designation, status)
-        VALUES (?, ?, ?, ?, ?)
-      `);
-      const result = stmt.run(name, email, department, designation, status || 'active');
+      const newEmployee = await prisma.employee.create({
+        data: {
+          name: name.trim(),
+          email: normalizedEmail,
+          department: department.trim(),
+          designation: designation.trim(),
+          status: normalizedStatus,
+        },
+      });
 
-      const newEmployee = db.prepare('SELECT * FROM employees WHERE id = ?').get(result.lastInsertRowid);
-      res.status(201).json(newEmployee);
+      res.status(201).json(formatEmployee(newEmployee));
     } catch (err) {
-      console.error('Error creating employee:', err.message);
-      if (err.message.includes('UNIQUE constraint failed')) {
+      if (err.code === 'P2002') {
         return res.status(409).json({ error: 'An employee with this email already exists' });
       }
+      console.error('Error creating employee with Prisma:', err.message);
       res.status(500).json({ error: 'Failed to create employee' });
     }
   });
 
   /**
    * PUT /api/employees/:id
-   * Update an existing employee. Validates input and checks for duplicate email (excluding current employee).
+   * Update an existing employee using Prisma ORM.
    */
-  router.put('/:id', validateEmployeeUpdate, (req, res) => {
+  router.put('/:id', validateEmployeeUpdate, async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(404).json({ error: 'Employee not found' });
+      }
+
       const { name, email, department, designation, status } = req.body;
+      const normalizedEmail = email.trim().toLowerCase();
 
       // Check if employee exists
-      const employee = db.prepare('SELECT * FROM employees WHERE id = ?').get(id);
+      const employee = await prisma.employee.findUnique({
+        where: { id },
+      });
       if (!employee) {
         return res.status(404).json({ error: 'Employee not found' });
       }
 
-      // Check for duplicate email (excluding current employee)
-      const existing = db.prepare('SELECT id FROM employees WHERE email = ? AND id != ?').get(email, id);
-      if (existing) {
+      // Check duplicate email
+      const emailConflict = await prisma.employee.findFirst({
+        where: {
+          email: normalizedEmail,
+          NOT: { id },
+        },
+      });
+      if (emailConflict) {
         return res.status(409).json({ error: 'An employee with this email already exists' });
       }
 
-      const stmt = db.prepare(`
-        UPDATE employees
-        SET name = ?, email = ?, department = ?, designation = ?, status = ?, updated_at = datetime('now')
-        WHERE id = ?
-      `);
-      stmt.run(name, email, department, designation, status || employee.status, id);
+      const updatedEmployee = await prisma.employee.update({
+        where: { id },
+        data: {
+          name: name.trim(),
+          email: normalizedEmail,
+          department: department.trim(),
+          designation: designation.trim(),
+          status: status ? status.trim().toLowerCase() : employee.status,
+        },
+      });
 
-      const updatedEmployee = db.prepare('SELECT * FROM employees WHERE id = ?').get(id);
-      res.json(updatedEmployee);
+      res.json(formatEmployee(updatedEmployee));
     } catch (err) {
-      console.error('Error updating employee:', err.message);
-      if (err.message.includes('UNIQUE constraint failed')) {
+      if (err.code === 'P2002') {
         return res.status(409).json({ error: 'An employee with this email already exists' });
       }
+      console.error('Error updating employee with Prisma:', err.message);
       res.status(500).json({ error: 'Failed to update employee' });
     }
   });
 
   /**
    * DELETE /api/employees/:id
-   * Delete an employee by ID.
+   * Delete an employee using Prisma ORM.
    */
-  router.delete('/:id', (req, res) => {
+  router.delete('/:id', async (req, res) => {
     try {
-      const { id } = req.params;
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(404).json({ error: 'Employee not found' });
+      }
 
-      // Check if employee exists
-      const employee = db.prepare('SELECT * FROM employees WHERE id = ?').get(id);
+      const employee = await prisma.employee.findUnique({
+        where: { id },
+      });
       if (!employee) {
         return res.status(404).json({ error: 'Employee not found' });
       }
 
-      db.prepare('DELETE FROM employees WHERE id = ?').run(id);
+      await prisma.employee.delete({
+        where: { id },
+      });
+
       res.json({ message: 'Employee deleted successfully' });
     } catch (err) {
-      console.error('Error deleting employee:', err.message);
+      console.error('Error deleting employee with Prisma:', err.message);
       res.status(500).json({ error: 'Failed to delete employee' });
     }
   });

@@ -19,6 +19,14 @@ export default function App() {
   const [filters, setFilters] = useState({ search: '', department: '', status: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState('');
+
+  const showToastMessage = (msg) => {
+    setToast(msg);
+    setTimeout(() => {
+      setToast('');
+    }, 3200);
+  };
 
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
@@ -74,8 +82,10 @@ export default function App() {
     if (editingEmployee) {
       const id = editingEmployee.id || editingEmployee._id;
       await updateEmployee(id, formData);
+      showToastMessage(`Employee "${formData.name}" updated successfully.`);
     } else {
       await createEmployee(formData);
+      showToastMessage(`Employee "${formData.name}" created successfully.`);
     }
     setShowForm(false);
     setEditingEmployee(null);
@@ -86,6 +96,7 @@ export default function App() {
   const handleDelete = async (id) => {
     try {
       await deleteEmployee(id);
+      showToastMessage('Employee record deleted successfully.');
       fetchEmployees();
       fetchDashboard();
     } catch (err) {
@@ -96,32 +107,45 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Employee Management System</h1>
+        <div className="brand-section">
+          <div className="brand-icon" aria-hidden="true">
+            ⚡
+          </div>
+          <div className="brand-titles">
+            <h1>Employee Management System</h1>
+            <div className="brand-subtitle">
+              <span>Enterprise Workforce Portal</span>
+              <span className="pill-badge">
+                <span className="pulse-dot"></span>
+                Prisma ORM Connected
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <button type="button" className="btn btn-primary" onClick={handleAddClick}>
+          <span>+ Add Employee</span>
+        </button>
       </header>
 
       <Dashboard data={dashboardData} />
 
       <section className="employee-section">
         <div className="section-header">
-          <h2>Employees</h2>
-          <button className="btn btn-primary" onClick={handleAddClick}>
-            + Add Employee
-          </button>
+          <div className="section-title-wrap">
+            <h2>Employees Directory</h2>
+            <p>Filter, search, review, and manage workforce member profiles</p>
+          </div>
         </div>
-
-        {showForm && (
-          <EmployeeForm
-            employee={editingEmployee}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-          />
-        )}
 
         <SearchFilter onSearch={handleSearch} onFilterChange={handleFilterChange} />
 
-        {error && <div className="error-banner">{error}</div>}
+        {error && <div className="server-error" style={{ marginBottom: '1rem' }}>{error}</div>}
+
         {loading ? (
-          <p className="loading">Loading...</p>
+          <p className="empty-subtext" style={{ padding: '2rem', textAlign: 'center' }}>
+            Loading workforce records...
+          </p>
         ) : (
           <EmployeeList
             employees={employees}
@@ -130,6 +154,21 @@ export default function App() {
           />
         )}
       </section>
+
+      {showForm && (
+        <EmployeeForm
+          employee={editingEmployee}
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+        />
+      )}
+
+      {toast && (
+        <div className="toast-banner toast-success" role="status">
+          <span>✓</span>
+          <span>{toast}</span>
+        </div>
+      )}
     </div>
   );
 }
