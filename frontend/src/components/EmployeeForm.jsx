@@ -25,7 +25,9 @@ export default function EmployeeForm({ onSubmit, employee, onCancel }) {
         email: employee.email || '',
         department: employee.department || '',
         designation: employee.designation || '',
-        status: employee.status || '',
+        status: employee.status
+          ? employee.status.charAt(0).toUpperCase() + employee.status.slice(1).toLowerCase()
+          : '',
       });
     } else {
       setFormData({ name: '', email: '', department: '', designation: '', status: '' });
@@ -71,9 +73,15 @@ export default function EmployeeForm({ onSubmit, employee, onCancel }) {
 
     setSubmitting(true);
     try {
-      await onSubmit(formData);
+      await onSubmit({
+        ...formData,
+        status: formData.status ? formData.status.toLowerCase() : 'active',
+      });
     } catch (err) {
-      setServerError(err.message || 'An error occurred');
+      const message = err.details && err.details.length > 0
+        ? `${err.message}: ${err.details.join('; ')}`
+        : (err.message || 'An error occurred');
+      setServerError(message);
     } finally {
       setSubmitting(false);
     }

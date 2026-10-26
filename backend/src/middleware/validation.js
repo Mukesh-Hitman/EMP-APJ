@@ -46,10 +46,13 @@ function validateEmployee(req, res, next) {
     errors.push('Designation is required');
   }
 
-  // Validate status: if provided, must be 'active' or 'inactive'
+  // Validate status: if provided, must be 'active' or 'inactive' (case-insensitive)
   if (status !== undefined && status !== null) {
-    if (!['active', 'inactive'].includes(status)) {
+    const normalized = typeof status === 'string' ? status.trim().toLowerCase() : '';
+    if (!['active', 'inactive'].includes(normalized)) {
       errors.push('Status must be either "active" or "inactive"');
+    } else {
+      req.body.status = normalized;
     }
   }
 
@@ -104,10 +107,13 @@ function validateEmployeeUpdate(req, res, next) {
     errors.push('Designation is required');
   }
 
-  // Validate status: must be 'active' or 'inactive'
+  // Validate status: must be 'active' or 'inactive' (case-insensitive)
   if (status !== undefined && status !== null) {
-    if (!['active', 'inactive'].includes(status)) {
+    const normalized = typeof status === 'string' ? status.trim().toLowerCase() : '';
+    if (!['active', 'inactive'].includes(normalized)) {
       errors.push('Status must be either "active" or "inactive"');
+    } else {
+      req.body.status = normalized;
     }
   }
 

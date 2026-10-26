@@ -203,3 +203,5 @@ graph TD
 | 2026-10-26 | System | Switched from `better-sqlite3` to `sql.js` | Windows environment compatibility without requiring Visual Studio C++ build tools |
 | 2026-10-26 | System | Added automated database saving on `.run()` | Guarantees atomic write of `employees.db` to disk on all mutations |
 | 2026-10-26 | System | Fixed heading query collision in `EmployeeForm.test.jsx` | Use `getByRole('heading', { name: 'Add Employee' })` to avoid button text collision |
+| 2026-10-26 | System | Fixed case-sensitivity validation for `status` and `id` mapping | Backend now normalizes `status` case-insensitively ('Active' -> 'active'); Frontend maps `id || _id` and displays detailed server validation errors |
+

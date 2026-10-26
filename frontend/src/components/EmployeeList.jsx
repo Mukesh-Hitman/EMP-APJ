@@ -7,7 +7,7 @@ export default function EmployeeList({ employees, onEdit, onDelete }) {
 
   const handleDelete = (employee) => {
     if (window.confirm(`Are you sure you want to delete ${employee.name}?`)) {
-      onDelete(employee._id);
+      onDelete(employee.id || employee._id);
     }
   };
 
@@ -25,27 +25,31 @@ export default function EmployeeList({ employees, onEdit, onDelete }) {
           </tr>
         </thead>
         <tbody>
-          {employees.map((emp) => (
-            <tr key={emp._id}>
-              <td>{emp.name}</td>
-              <td>{emp.email}</td>
-              <td>{emp.department}</td>
-              <td>{emp.designation}</td>
-              <td>
-                <span className={`badge ${emp.status === 'Active' ? 'badge-active' : 'badge-inactive'}`}>
-                  {emp.status}
-                </span>
-              </td>
-              <td className="actions">
-                <button className="btn btn-edit" onClick={() => onEdit(emp)}>
-                  Edit
-                </button>
-                <button className="btn btn-delete" onClick={() => handleDelete(emp)}>
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
+          {employees.map((emp) => {
+            const empId = emp.id || emp._id;
+            const isActive = String(emp.status).toLowerCase() === 'active';
+            return (
+              <tr key={empId}>
+                <td>{emp.name}</td>
+                <td>{emp.email}</td>
+                <td>{emp.department}</td>
+                <td>{emp.designation}</td>
+                <td>
+                  <span className={`badge ${isActive ? 'badge-active' : 'badge-inactive'}`}>
+                    {emp.status}
+                  </span>
+                </td>
+                <td className="actions">
+                  <button className="btn btn-edit" onClick={() => onEdit(emp)}>
+                    Edit
+                  </button>
+                  <button className="btn btn-delete" onClick={() => handleDelete(emp)}>
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

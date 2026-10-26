@@ -35,8 +35,8 @@ function createEmployeesRouter(db) {
       }
 
       if (status) {
-        query += ' AND status = ?';
-        params.push(status);
+        query += ' AND LOWER(status) = ?';
+        params.push(status.trim().toLowerCase());
       }
 
       query += ' ORDER BY created_at DESC';

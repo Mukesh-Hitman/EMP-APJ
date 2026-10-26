@@ -144,6 +144,15 @@ describe('POST /api/employees', () => {
     expect(res.status).toBe(201);
     expect(res.body.email).toBe('john.doe@example.com');
   });
+
+  it('should accept capitalized or mixed-case status and normalize to lowercase', async () => {
+    const res = await request(app)
+      .post('/api/employees')
+      .send(validEmployee({ status: 'Active' }));
+
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe('active');
+  });
 });
 
 describe('GET /api/employees', () => {

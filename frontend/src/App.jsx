@@ -72,7 +72,8 @@ export default function App() {
 
   const handleSubmit = async (formData) => {
     if (editingEmployee) {
-      await updateEmployee(editingEmployee._id, formData);
+      const id = editingEmployee.id || editingEmployee._id;
+      await updateEmployee(id, formData);
     } else {
       await createEmployee(formData);
     }
