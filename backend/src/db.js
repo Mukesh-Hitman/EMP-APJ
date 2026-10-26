@@ -86,6 +86,7 @@ async function initializeDatabase(dbPath) {
           lastStmt.step();
           const lastInsertRowid = lastStmt.getAsObject().id;
           lastStmt.free();
+          wrapper.save();
           return { changes, lastInsertRowid };
         },
       };

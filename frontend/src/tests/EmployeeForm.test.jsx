@@ -9,7 +9,7 @@ describe('EmployeeForm', () => {
   it('renders Add Employee form when no employee prop', () => {
     render(<EmployeeForm onSubmit={mockOnSubmit} employee={null} onCancel={mockOnCancel} />);
 
-    expect(screen.getByText('Add Employee')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Add Employee' })).toBeInTheDocument();
     expect(screen.getByLabelText('Name')).toBeInTheDocument();
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Department')).toBeInTheDocument();

@@ -5,9 +5,9 @@ const createApp = require('../src/app');
 let db;
 let app;
 
-beforeEach(() => {
+beforeEach(async () => {
   // Use in-memory database for each test
-  db = initializeDatabase(':memory:');
+  db = await initializeDatabase(':memory:');
   app = createApp(db);
 });
 
